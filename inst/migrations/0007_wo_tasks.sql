@@ -1,0 +1,27 @@
+CREATE TABLE IF NOT EXISTS mbhlmaintenance.wo_tasks (
+  task_id                     SERIAL PRIMARY KEY,
+  wo_id                       INT NOT NULL REFERENCES mbhlmaintenance.work_orders,
+  task_number                 INT NOT NULL,
+  task_type                   TEXT NOT NULL CHECK (task_type IN ('planned', 'snag')),
+  inspection_id               INT REFERENCES mbhlmaintenance.inspections,
+  status                      TEXT NOT NULL
+                              CHECK (status IN ('open', 'in_progress', 'completed', 'deferred')),
+  ata_chapter                 TEXT,
+  reference                   TEXT,
+  title                       TEXT NOT NULL,
+  description                 TEXT,
+  work_performed              TEXT,
+  no_fault_found              BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_by                INT REFERENCES mbhlcore.personnel,
+  completed_date              DATE,
+  in_progress_note            TEXT,
+  in_progress_airtime_started NUMERIC,
+  in_progress_date_started    DATE,
+  requires_dual_inspection    BOOLEAN NOT NULL DEFAULT FALSE,
+  dual_inspected_by           INT REFERENCES mbhlcore.personnel,
+  dual_inspected_date         DATE,
+  requires_flight_test        BOOLEAN NOT NULL DEFAULT FALSE,
+  flight_test_satisfied_date  DATE,
+  flight_test_by              INT REFERENCES mbhlcore.personnel,
+  notes                       TEXT
+);
