@@ -29,9 +29,9 @@ CREATE TABLE IF NOT EXISTS mbhlmaintenance.work_orders (
 
 -- FK rétroactives maintenant que work_orders existe
 ALTER TABLE mbhlmaintenance.part_events
-  ADD CONSTRAINT IF NOT EXISTS fk_part_events_wo
+  ADD CONSTRAINT fk_part_events_wo
   FOREIGN KEY (work_order_id) REFERENCES mbhlmaintenance.work_orders;
 
 ALTER TABLE mbhlmaintenance.inspection_completions
-  ADD CONSTRAINT IF NOT EXISTS fk_inspection_completions_wo
+  ADD CONSTRAINT fk_inspection_completions_wo
   FOREIGN KEY (work_order_id) REFERENCES mbhlmaintenance.work_orders;

@@ -31,5 +31,5 @@ CREATE TABLE IF NOT EXISTS mbhlmaintenance.inspection_templates (
 
 -- FK rétroactive maintenant que inspection_templates existe
 ALTER TABLE mbhlmaintenance.inspections
-  ADD CONSTRAINT IF NOT EXISTS fk_inspections_template
+  ADD CONSTRAINT fk_inspections_template
   FOREIGN KEY (master_template_id) REFERENCES mbhlmaintenance.inspection_templates;

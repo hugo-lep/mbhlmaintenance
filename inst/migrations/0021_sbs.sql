@@ -13,9 +13,9 @@ CREATE TABLE IF NOT EXISTS mbhlmaintenance.sbs (
 
 -- FK rétroactives maintenant que sbs existe
 ALTER TABLE mbhlmaintenance.applicability_factors
-  ADD CONSTRAINT IF NOT EXISTS fk_applicability_factors_sb
+  ADD CONSTRAINT fk_applicability_factors_sb
   FOREIGN KEY (related_sb_id) REFERENCES mbhlmaintenance.sbs;
 
 ALTER TABLE mbhlmaintenance.ads
-  ADD CONSTRAINT IF NOT EXISTS fk_ads_sb
+  ADD CONSTRAINT fk_ads_sb
   FOREIGN KEY (referenced_sb_id) REFERENCES mbhlmaintenance.sbs;
