@@ -26,16 +26,16 @@ mod_catalog_ui <- function(id) {
                     shiny::selectInput(
                         ns("aircraft_type"),
                         label   = NULL,
-                        choices = c("Tous les types" = "0")
+                        choices = c("Tous modèles A/C" = "0")
                     ),
                     shiny::selectInput(
                         ns("tracking_class"),
                         label   = NULL,
                         choices = c(
-                            "Toutes les classes" = "",
-                            "Inventaire"         = "inventory",
-                            "Actif (asset)"      = "asset",
-                            "Consommable"        = "consumable"
+                            "Tous"           = "",
+                            "Inventaire"     = "inventory",
+                            "Actif (asset)"  = "asset",
+                            "Consommable"    = "consumable"
                         )
                     ),
                     shiny::selectInput(
@@ -106,7 +106,7 @@ mod_catalog_server <- function(id, refresh = NULL) {
                 FROM mbhlcore.aircraft_types
                 ORDER BY manufacturer, model, variant
             ")
-            choices <- c("Tous les types" = "0")
+            choices <- c("Tous modèles A/C" = "0")
             if (nrow(types) > 0)
                 choices <- c(choices, stats::setNames(
                     as.character(types$type_id), types$label

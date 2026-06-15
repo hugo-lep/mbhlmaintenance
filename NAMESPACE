@@ -3,3 +3,5 @@
 export(mbhlmaintenance_permissions)
 export(mod_catalog_server)
 export(mod_catalog_ui)
+export(seed_demo_data_maintenance)
+export(seed_demo_parts_instances)
