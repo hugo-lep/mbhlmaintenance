@@ -2,7 +2,7 @@
 
 > Fichier autonome. Contient tout le contexte nécessaire pour travailler sur `mbhlMaintenance`
 > sans accès à `plan.md` ni à la session Cowork.
-> Dernière mise à jour: 2026-06-07
+> Dernière mise à jour: 2026-06-15
 
 ---
 
@@ -132,7 +132,53 @@ parent_position_id      INT REFERENCES parts_catalog_positions  -- nullable (pos
 is_active               BOOLEAN NOT NULL DEFAULT TRUE
 ```
 
-### 2.4 Templates d'inspection — voir section 16
+### 2.4 Applicabilité par type d'avion (`parts_catalog_applicability`)
+
+Many-to-many entre `parts_catalog` et `aircraft_types`. Dans le schema `mbhlcore`.
+Migration `0012_parts_catalog_applicability.sql` — **déjà appliquée sur Pascan**.
+
+```sql
+parts_catalog_applicability          -- dans mbhlcore
+────────────────────────────────────────────
+catalog_id        INT NOT NULL REFERENCES parts_catalog
+aircraft_type_id  INT NOT NULL REFERENCES aircraft_types
+notes             TEXT                 -- ex: 'SAAB 340B seulement (pas SF34)'
+PRIMARY KEY (catalog_id, aircraft_type_id)
+```
+
+**Règle:** une pièce sans entrée ici est considérée non restreinte à un type d'avion.
+C'est via cette table que le filtre "type d'avion" de `mod_catalog` fonctionne.
+
+### 2.5 P/Ns interchangeables (`parts_catalog_alternate_groups`)
+
+Groupes de P/Ns interchangeables. Dans le schema `mbhlcore`.
+Migration `0015_parts_catalog_alternate_groups.sql` — **déjà appliquée sur Pascan**.
+
+```sql
+parts_catalog_alternate_groups       -- dans mbhlcore
+────────────────────────────────────────────
+group_id     SERIAL PRIMARY KEY
+description  TEXT NOT NULL    -- ex: 'Starter-gen AT400/AT401/AT402'
+notes        TEXT
+
+parts_catalog_alternate_memberships  -- dans mbhlcore
+────────────────────────────────────────────
+group_id    INT NOT NULL REFERENCES parts_catalog_alternate_groups
+catalog_id  INT NOT NULL REFERENCES parts_catalog
+notes       TEXT             -- ex: 'approuvé SAAB 340B seulement'
+PRIMARY KEY (group_id, catalog_id)
+```
+
+**Principe fondamental:** aucun P/N "principal" — tous les membres sont égaux.
+Chaque P/N reste son propre `catalog_id` indépendant.
+**Invisible sur les documents** (PO, certifications, maintenance release → toujours le vrai P/N de la pièce physique).
+
+**Usages:**
+- `mod_catalog` : affiche les alternates inline dans la colonne P/N
+- `mbhlMagasin` : recherche de stock avec case "inclure les alternates"
+- `mbhlMaintenance` : analyse de fiabilité — pooler plusieurs catalog_ids d'un même groupe
+
+### 2.6 Templates d'inspection — voir section 16
 
 Le système de templates a été revu en profondeur. `parts_catalog_inspection_templates` est remplacé par `inspection_templates` (table unifiée couvrant les templates avion ET composante) + `inspection_sources` (documents de référence).
 
@@ -1106,7 +1152,69 @@ fois le dossier TC approuvé.
 
 ---
 
-## 15. Questions ouvertes
+## 15. Gestion des permissions
+
+### Structure de `config_user`
+
+Format imbriqué — jamais de clés plates :
+```r
+config_user$mbhlmaintenance$forecast$has_access
+config_user$mbhlmaintenance$work_orders$can_close
+config_user$mbhlmaintenance$work_orders$can_review
+```
+`NULL` = accès refusé (default deny). Jamais `FALSE` — soit `TRUE`, soit absent.
+`config_user$.role` contient le rôle protegR2 (`'dev'`|`'admin'`|`'user'`|...).
+
+### Rôle `dev` — bypass total
+
+`has_permission()` retourne toujours `TRUE` si `config_user$.role == "dev"`.
+Raison : quand une nouvelle permission est ajoutée au registre, personne ne l'a encore.
+Le dev peut tester immédiatement sans avoir à configurer les groupes.
+
+### Moteur dans protegR2 (refactor en attente)
+
+`build_user_permissions()`, `has_permission()`, `assert_permission()` seront dans `protegR2`.
+Actuellement encore dans `mbhlcore/R/permissions.R` — migration à faire avant de câbler
+les permissions dans les modules Shiny de mbhlMaintenance.
+
+### Registre `mbhlmaintenance_permissions`
+
+Chaque package exporte une liste nommée de toutes ses permissions — source de vérité
+pour l'UI admin et pour ne rien oublier. Ajouter une permission = l'ajouter au registre.
+
+```r
+# R/permissions.R
+mbhlmaintenance_permissions <- list(
+    forecast = list(
+        has_access = "Voir le forecast"
+    ),
+    work_orders = list(
+        can_view   = "Voir les work orders",
+        can_open   = "Ouvrir un W.O.",
+        can_stage  = "Préparer un W.O. (staged)",
+        can_add_task   = "Ajouter une tâche",
+        can_close_task = "Signer/fermer une tâche",
+        can_close  = "Fermer un W.O.",
+        can_review = "Réviser un W.O. (maintenance control)"
+    ),
+    inspections = list(
+        has_access        = "Voir les inspections",
+        can_create        = "Créer une inspection",
+        can_edit          = "Modifier une inspection",
+        can_approve_extension = "Approuver une extension",
+        can_manage_packages   = "Gérer les packages d'inspection",
+        can_manage_deferrals  = "Gérer les ajournements MEL",
+        can_void_completion   = "Annuler une completion"
+    ),
+    catalog = list(
+        can_review = "Réviser les entrées parts_catalog"
+    )
+)
+```
+
+---
+
+## 16. Questions ouvertes (ancien §15)
 
 | # | Question | Statut |
 |---|----------|--------|
@@ -1118,7 +1226,7 @@ fois le dossier TC approuvé.
 
 ---
 
-## 16. Templates d'inspection, ADs et SBs
+## 17. Templates d'inspection, ADs et SBs
 
 ### 16.1 Entité de référence — `aircraft_types` *(dans `mbhlCore`)*
 
@@ -1539,7 +1647,7 @@ notes                   TEXT
 
 ---
 
-## 17. Publications *(dans `mbhlCore`)*
+## 18. Publications *(dans `mbhlCore`)*
 
 Suivi de toutes les publications de référence utilisées par la compagnie (AMM, MPD, CMM, IPC, MEL, FCOM, etc.). Toutes les publications sont suivies ici — seules celles ayant un impact sur la maintenance planifiée ont des entrées dans `inspection_sources`.
 
@@ -1584,3 +1692,55 @@ notes                   TEXT
 **Lien avec la maintenance planifiée :** quand une publication a un impact sur les templates d'inspection (MPD, CMM, AMM avec listes de tâches), une entrée `inspection_sources` est créée avec `publication_id` pointant vers cette publication. Le `publication_revision_log` sert alors de journal des révisions pour cette source — pas besoin d'un `source_revision_log (n'existe pas — remplacé par publication_revision_log dans mbhlCore)` séparé.
 
 **Cas AMM de petit avion :** une AMM (pub_type='amm') peut avoir une entrée `inspection_sources` avec source_type='mrb' si elle contient les listes de tâches d'inspection (pas de MRB séparé).
+
+---
+
+## 19. Données de démonstration
+
+### 19.1 Contexte fictif
+
+- **Compagnie:** Nordex Air
+- **Fabricant fictif:** Harfang Aviation (3 modèles)
+- **Avions:**
+
+| Modèle | Code ICAO | Inspiration | Catégorie |
+|--------|-----------|-------------|-----------|
+| Huard 208  | HB08 | Cessna Caravan | Monomoteur turbopropulseur |
+| Harfang 340 | HF34 | SAAB 340 | Bimoteur régional |
+| Busard 412  | BU12 | Bell 412 | Hélicoptère |
+
+Noms d'oiseaux du Nord québécois — clairement fictifs, aucun risque de confusion avec
+un vrai programme de maintenance.
+
+### 19.2 État de la démo mbhlCore (déjà complété)
+
+`mbhlCore::seed_demo_data(con)` est **entièrement fonctionnel** (Phase 6 mbhlCore ✅).
+19 fonctions seed couvrant :
+- Aircraft types : HB08 / HF34 / BU12 (codes internes)
+- 9 appareils C-FLY1 à C-FLY9 (4 HF34 / 3 HB08 / 2 BU12, 1 inactif)
+- Bases YUL / YHU / YVO, devises CAD/USD/EUR
+- 9 membres du personnel (tous rôles couverts), 7 licences
+- **874 pièces** dans `parts_catalog` (20 showcase + 854 dérivées, nomenclature anatomie d'oiseau)
+- Groupes d'alternates : 1 groupe exemple (3 membres)
+- 6 publications (AMM/IPC/MPD/FCOM/MEL)
+
+### 19.3 Seed mbhlMaintenance (à faire)
+
+À créer dans `inst/demo/` — fonctions seed basées sur les 874 pièces et 9 avions déjà en DB :
+
+- `seed_demo_inspections(con)` — inspections avec limites variées (airtime, cycles, date)
+- `seed_demo_inspection_completions(con)` — historique de completions (dates relatives)
+- `seed_demo_work_orders(con)` — quelques W.O. à différents stades (open, closed, completed)
+- `seed_demo_parts_instances(con)` — unités individuelles installées (moteurs, hélices)
+- `seed_demo_part_events(con)` — journal TSN/TSO (installs, removes)
+
+**Convention dates:** toutes relatives à `Sys.Date()` — la démo reste pertinente dans le temps.
+**Idempotence:** chaque fonction vérifie si la table est déjà peuplée avant d'insérer (skip si oui).
+
+### 19.4 Reset de la démo
+
+```r
+# À implémenter dans mbhlMaintenance
+demo_reset_maintenance(con)   # efface + reseed les tables mbhlmaintenance seulement
+                              # (ne touche pas aux tables mbhlcore)
+```

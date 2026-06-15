@@ -2,7 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-inst/dev/
 .httr-oauth
 .DS_Store
 .quarto
+inst/dev/
+inst/app/
+
