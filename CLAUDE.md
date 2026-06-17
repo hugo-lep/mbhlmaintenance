@@ -1707,7 +1707,7 @@ notes                   TEXT
 |--------|-----------|-------------|-----------|
 | Huard 208  | HB08 | Cessna Caravan | Monomoteur turbopropulseur |
 | Harfang 340 | HF34 | SAAB 340 | Bimoteur régional |
-| Busard 412  | BU12 | Bell 412 | Hélicoptère |
+| Dragonfly 412 | BU12 | Bell 412 | Hélicoptère |
 
 Noms d'oiseaux du Nord québécois — clairement fictifs, aucun risque de confusion avec
 un vrai programme de maintenance.
